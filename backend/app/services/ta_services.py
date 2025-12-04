@@ -69,3 +69,65 @@ def get_all_tas():
     conn.close()
 
     return tas
+
+def get_ta_by_id(ta_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Step 1: Get the TA basic info
+    query = """
+        SELECT 
+            ta_id,
+            name,
+            program,
+            level,
+            max_hours
+        FROM ta
+        WHERE ta_id = %s;
+    """
+    cursor.execute(query, (ta_id,))
+    ta = cursor.fetchone()
+
+    if not ta:
+        cursor.close()
+        conn.close()
+        return None
+
+    # Step 2: Get preferred professors
+    pref_query = """
+        SELECT 
+            p.professor_id,
+            p.name
+        FROM ta_preferred_professor tpp
+        JOIN professor p ON tpp.professor_id = p.professor_id
+        WHERE tpp.ta_id = %s;
+    """
+    cursor.execute(pref_query, (ta_id,))
+    pref_rows = cursor.fetchall()
+    ta["preferred_professors"] = [{"professor_id": row["professor_id"], "name": row["name"]} for row in pref_rows]
+
+    # Step 3: Get TA skills
+    skills_query = """
+        SELECT skill
+        FROM ta_skill
+        WHERE ta_id = %s;
+    """
+    cursor.execute(skills_query, (ta_id,))
+    skill_rows = cursor.fetchall()
+    ta["skills"] = [row["skill"] for row in skill_rows]
+
+    # Step 4: Get course interests
+    courses_query = """
+        SELECT course_code, interest_level
+        FROM ta_preferred_course
+        JOIN course ON ta_preferred_course.course_id = course.course_id
+        WHERE ta_id = %s;
+    """
+    cursor.execute(courses_query, (ta_id,))
+    course_rows = cursor.fetchall()
+    # Convert to { course_code: interest } format
+    ta["course_interests"] = {row["course_code"]: row["interest_level"] for row in course_rows}
+
+    cursor.close()
+    conn.close()
+    return ta
