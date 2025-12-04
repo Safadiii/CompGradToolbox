@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS ta (
     standing INT,
     notes TEXT,
     bs_school_program VARCHAR(150),
-    ms_school_program VARCHAR(150)
+    ms_school_program VARCHAR(150),
+    max_hours INT DEFAULT 20
 );
 
 CREATE TABLE IF NOT EXISTS ta_thesis_advisor (
@@ -69,3 +70,33 @@ CREATE TABLE IF NOT EXISTS course_preferred_ta (
         ON DELETE CASCADE ON UPDATE CASCADE,
     PRIMARY KEY (course_id, ta_id)
 );
+
+CREATE TABLE IF NOT EXISTS ta_preferred_professor (
+    ta_id INT NOT NULL,
+    professor_id INT NOT NULL,
+    FOREIGN KEY (ta_id) REFERENCES ta(ta_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (professor_id) REFERENCES professor(professor_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    PRIMARY KEY (ta_id, professor_id)
+);
+
+CREATE TABLE IF NOT EXISTS professor_preferred_ta (
+    professor_id INT NOT NULL,
+    ta_id INT NOT NULL,
+    FOREIGN KEY (professor_id) REFERENCES professor(professor_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (ta_id) REFERENCES ta(ta_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    PRIMARY KEY (professor_id, ta_id)
+);
+
+
+CREATE TABLE weights (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    ta_pref FLOAT NOT NULL,
+    prof_pref FLOAT NOT NULL,
+    course_pref FLOAT NOT NULL,
+    workload_balance FLOAT NOT NULL
+);
+

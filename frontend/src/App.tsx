@@ -11,6 +11,7 @@ import ReportChecker from './components/ReportChecker';
 import RulesAndWeights from './components/RulesAndWeights';
 import AuditLogs from './components/AuditLogs';
 import PeopleDirectory from './components/PeopleDirectory';
+import TAAssignmentResult from './components/TAAssignmentResult';
 
 export type UserRole = 'faculty' | 'student' | 'admin';
 
@@ -75,7 +76,8 @@ export default function App() {
         if (userRole === 'student') {
           return <TAProfileStudent />;
         } else if (userRole === 'admin') {
-          return <TAAssignmentCoordinator />;
+          return <TAAssignmentCoordinator onNavigate={setCurrentPage} />
+;
         }
         return <TAAssignmentFaculty />;
       case 'comp590':
@@ -88,6 +90,8 @@ export default function App() {
         return <AuditLogs />;
       case 'people-directory':
         return <PeopleDirectory />;
+      case 'ta-assignment-result':
+        return <TAAssignmentResult />;
       default:
         return <Dashboard userName={userName} userRole={userRole} onNavigate={setCurrentPage} />;
     }

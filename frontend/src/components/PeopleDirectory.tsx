@@ -8,12 +8,22 @@ interface TA {
   name: string;
   program: string;
   level: "MS" | "PhD";
+  max_hours: number;
+  preferred_professors: { professor_id: number; name: string }[];
 }
 
 interface Professor {
   professor_id: number;
   name: string;
+  preferred_tas: {
+    ta_id: number;
+    name: string;
+    program: string;
+    level: "MS" | "PhD";
+    max_hours: number;
+  }[];
 }
+
 
 export default function PeopleDirectory() {
   const [tas, setTas] = useState<TA[]>([]);
@@ -108,7 +118,9 @@ export default function PeopleDirectory() {
                 <div className="space-y-1">
                 <div className="text-neutral-900 font-medium">{ta.name}</div>
                 <div className="text-sm text-neutral-600">
-                    {ta.program} • {ta.level}
+                    {ta.program} • {ta.level} • {ta.max_hours} - {ta.preferred_professors.length > 0 
+                                                                ? ta.preferred_professors.map(p => p.name).join(", ")
+                                                                : "No preferences"}
                 </div>
                 </div>
             </div>
@@ -141,19 +153,27 @@ export default function PeopleDirectory() {
 
           <CardContent className="space-y-4">
             {professors.map((prof) => (
-            <div
+                <div
                 key={prof.professor_id}
-                className="flex items-start justify-between border border-neutral-200 rounded-lg p-4"
-            >
-                <div className="space-y-1">
-                <div className="text-neutral-900 font-medium">{prof.name}</div>
+                className="border p-4 rounded-lg"
+                >
+                <div className="font-medium text-neutral-900">{prof.name}</div>
+
+                {prof.preferred_tas.length > 0 ? (
+                    <div className="mt-1 text-sm text-neutral-600">
+                    Preferred TAs:{" "}
+                    {prof.preferred_tas.map(t => t.name).join(", ")}
+                    </div>
+                ) : (
+                    <div className="mt-1 text-sm text-neutral-500">
+                    No preferred TAs
+                    </div>
+                )}
                 </div>
-            </div>
             ))}
 
-
             {professors.length === 0 && (
-              <p className="text-sm text-neutral-500">No professors available.</p>
+                <p className="text-sm text-neutral-500">No professors available.</p>
             )}
           </CardContent>
         </Card>
