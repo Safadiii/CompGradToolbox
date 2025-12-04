@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { use, useState } from 'react';
 import { Home, Users, FileCheck, Settings, BarChart3, Shield } from 'lucide-react';
 import LoginScreen from './components/LoginScreen';
 import Sidebar from './components/Sidebar';
@@ -48,15 +48,17 @@ const navigationItems: NavigationItem[] = [
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<UserRole>('faculty');
-  const [userName, setUserName] = useState('Dr. Sarah Chen');
+  const [name, setName] = useState('');
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [userId, setUserId] = useState<number | null>(null);
+  const [username, setUsername] = useState('');
 
-  const handleLogin = (role: UserRole, id: number, name: string) => {
+  const handleLogin = (role: UserRole, id: number, name: string, username: string) => {
     setIsLoggedIn(true);
     setUserRole(role);
     setUserId(id);
-    setUserName(name);
+    setName(name);
+    setUsername(username)
   };
 
   const handleLogout = () => {
@@ -67,14 +69,14 @@ export default function App() {
   const renderContent = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard userName={userName} userRole={userRole} onNavigate={setCurrentPage} />;
+        return <Dashboard name={name} userRole={userRole} onNavigate={setCurrentPage} />;
       case 'ta-assignment':
         if (userRole === 'student') {
-          return <TAProfileStudent taId={userId} />;
+          return <TAProfileStudent/>;
         } else if (userRole === 'admin') {
-          return <TAAssignmentCoordinator userId={userId} />;
+          return <TAAssignmentCoordinator onNavigate={setCurrentPage} />;
         }
-        return <TAAssignmentFaculty professorId={userId} />;
+        return <TAAssignmentFaculty userName = {username} />;
       case 'comp590':
         return <ReportChecker type="comp590" />;
       case 'comp291-391':
@@ -88,7 +90,7 @@ export default function App() {
       case 'ta-assignment-result':
         return <TAAssignmentResult />;
       default:
-        return <Dashboard userName={userName} userRole={userRole} onNavigate={setCurrentPage} />;
+        return <Dashboard name={name} userRole={userRole} onNavigate={setCurrentPage} />;
     }
   };
 
@@ -127,7 +129,7 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar
           pageTitle={getPageTitle()}
-          userName={userName}
+          name={name}
           userRole={userRole}
           onLogout={handleLogout}
         />

@@ -7,6 +7,7 @@ from app.routes import tas
 from app.routes import professors
 from app.routes import weight
 from app.routes import login
+from app.routes import course
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -27,6 +28,8 @@ app.include_router(assignment.router, prefix="/api", tags=["Assignment"])
 app.include_router(tas.router, prefix="/api", tags=["TAs"])
 app.include_router(professors.router, prefix="/api", tags=["Professors"])
 app.include_router(weight.router, prefix="/api/weights", tags=["Weights"])
+app.include_router(course.router, prefix="/courses", tags=["courses"])
+
 
 
 

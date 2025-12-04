@@ -5,12 +5,12 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 
 interface DashboardProps {
-  userName: string;
+  name: string;
   userRole: UserRole;
   onNavigate: (page: string) => void;
 }
 
-export default function Dashboard({ userName, userRole, onNavigate }: DashboardProps) {
+export default function Dashboard({ name, userRole, onNavigate }: DashboardProps) {
   const getRoleLabel = () => {
     switch (userRole) {
       case 'faculty':
@@ -61,7 +61,7 @@ export default function Dashboard({ userName, userRole, onNavigate }: DashboardP
     <div className="space-y-6">
       {/* Welcome Section */}
       <div>
-        <h1 className="text-neutral-900 mb-1">Welcome, {userName.split(' ')[0]}</h1>
+        <h1 className="text-neutral-900 mb-1">Welcome, {name.split(' ')[0]}</h1>
         <p className="text-neutral-600">Role: {getRoleLabel()}</p>
       </div>
 

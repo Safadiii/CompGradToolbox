@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Edit, Plus, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -21,49 +21,63 @@ import {
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 
-export default function TAAssignmentFaculty() {
+interface TAAssignmentFacultyProps {
+  userName: string;
+}
+
+type CourseStatus = 'assigned' | 'partial' | 'unassigned';
+
+interface Course {
+  id: string;
+  code: string;
+  name: string;
+  requiredTAs: number;
+  assignedTAs: string[];
+  skills: string[];
+  status: CourseStatus;
+}
+
+
+export default function TAAssignmentFaculty({ userName }: TAAssignmentFacultyProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTerm, setSelectedTerm] = useState('fall-2025');
   const [editingCourse, setEditingCourse] = useState<string | null>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const courses = [
-    {
-      id: '1',
-      code: 'COMP302',
-      name: 'Programming Languages',
-      requiredTAs: 2,
-      assignedTAs: ['Alex T.', 'Jamie L.'],
-      skills: ['Functional Programming', 'Scala', 'OCaml'],
-      status: 'assigned' as const,
-    },
-    {
-      id: '2',
-      code: 'COMP421',
-      name: 'Database Systems',
-      requiredTAs: 3,
-      assignedTAs: ['Morgan S.', 'Casey P.'],
-      skills: ['SQL', 'Databases', 'PostgreSQL'],
-      status: 'partial' as const,
-    },
-    {
-      id: '3',
-      code: 'COMP424',
-      name: 'Artificial Intelligence',
-      requiredTAs: 2,
-      assignedTAs: [],
-      skills: ['Machine Learning', 'Python', 'AI'],
-      status: 'unassigned' as const,
-    },
-    {
-      id: '4',
-      code: 'COMP310',
-      name: 'Operating Systems',
-      requiredTAs: 2,
-      assignedTAs: ['Taylor K.', 'Jordan M.'],
-      skills: ['C', 'Linux', 'Systems'],
-      status: 'assigned' as const,
-    },
-  ];
+  useEffect(() => {
+  const fetchCourses = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `http://127.0.0.1:8000/courses/by-professor?username=${userName}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch courses');
+
+      const data = await response.json();
+
+      // Normalize API data: provide defaults for missing fields
+      const normalizedCourses: Course[] = data.map((c: any) => ({
+        id: c.course_id?.toString() ?? '',
+        code: c.course_code ?? 'Unknown',
+        name: c.name ?? '',
+        requiredTAs: c.num_tas_requested ?? 0,
+        assignedTAs: c.assignedTAs ?? [], // default empty array
+        skills: c.skills ?? [],           // default empty array
+        status: c.status ?? 'unassigned',
+      }));
+
+      setCourses(normalizedCourses);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchCourses();
+  }, [userName]);
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {

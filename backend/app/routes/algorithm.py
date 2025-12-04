@@ -11,5 +11,3 @@ def run_assignment():
     result = run_assignment_algorithm()
     return result
 
-
-# TO BE REMOVED / REDUNDANT
