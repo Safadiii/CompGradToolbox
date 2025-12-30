@@ -144,3 +144,46 @@ CREATE TABLE activity_log (
   type ENUM('success','warning','info') DEFAULT 'info',
   timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+
+CREATE TABLE IF NOT EXISTS assignment_run (
+  run_id INT AUTO_INCREMENT PRIMARY KEY,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  created_by VARCHAR(100) NULL,
+  notes VARCHAR(255) NULL
+);
+
+CREATE TABLE IF NOT EXISTS assignment_run_course (
+  run_id INT NOT NULL,
+  course_id INT NULL,
+  course_code VARCHAR(50) NOT NULL,
+  professor_id INT NULL,
+  professor_name VARCHAR(100) NULL,
+  PRIMARY KEY (run_id, course_code),
+  FOREIGN KEY (run_id) REFERENCES assignment_run(run_id) ON DELETE CASCADE,
+  FOREIGN KEY (course_id) REFERENCES course(course_id) ON DELETE SET NULL,
+  FOREIGN KEY (professor_id) REFERENCES professor(professor_id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS assignment_run_ta (
+  run_id INT NOT NULL,
+  course_code VARCHAR(50) NOT NULL,
+  ta_id INT NULL,
+  ta_name VARCHAR(100) NOT NULL,
+  PRIMARY KEY (run_id, course_code, ta_name),
+  FOREIGN KEY (run_id, course_code) REFERENCES assignment_run_course(run_id, course_code) ON DELETE CASCADE,
+  FOREIGN KEY (ta_id) REFERENCES ta(ta_id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS assignment_run_item (
+  run_id INT NOT NULL,
+  course_id INT NOT NULL,
+  ta_id INT NOT NULL,
+  PRIMARY KEY (run_id, course_id, ta_id),
+  FOREIGN KEY (run_id) REFERENCES assignment_run(run_id) ON DELETE CASCADE,
+  FOREIGN KEY (course_id) REFERENCES course(course_id) ON DELETE CASCADE,
+  FOREIGN KEY (ta_id) REFERENCES ta(ta_id) ON DELETE CASCADE
+);
+
+
+CREATE INDEX idx_assignment_run_ta_ta ON assignment_run_ta (ta_id, run_id);

@@ -16,6 +16,8 @@ import TAAssignmentResult from './components/TAAssignmentResult';
 import FacultyProfile  from './components/FacultyProfile';
 import TACourses from './components/TACourses';
 import ProfilePage from './components/ProfilePage';
+import AssignmentHistory from './components/AssignmentHistory';
+
 
 export type UserRole = 'faculty' | 'student' | 'admin';
 
@@ -49,6 +51,17 @@ const navigationItems: NavigationItem[] = [
       { id: 'audit-logs', label: 'Audit Logs' },
     ],
   },
+  {
+    id: 'admin',
+    label: 'Admin & Settings',
+    icon: Settings,
+    children: [
+      { id: 'rules-weights', label: 'Rules & Weights' },
+      { id: 'audit-logs', label: 'Audit Logs' },
+      { id: 'assignment-history', label: 'Assignment History' },
+    ],
+  },
+
 ];
 export type AuthPage = 'login' | 'register' | 'app' | 'onboarding';
  
@@ -116,6 +129,8 @@ const handleLogin = (
         children: [
           { id: 'rules-weights', label: 'Rules & Weights' },
           { id: 'audit-logs', label: 'Audit Logs' },
+          { id: 'assignment-history', label: 'Assignment History' }, 
+
         ],
       },
     ];
@@ -154,6 +169,10 @@ const handleLogin = (
         return <PeopleDirectory />;
       case 'ta-assignment-result':
         return <TAAssignmentResult />;
+      case 'assignment-history':
+        if (userRole !== 'admin') return <div className="text-sm text-neutral-600">Admins only.</div>;
+        return <AssignmentHistory />;
+
       case 'profile':
         return (
           <ProfilePage
@@ -190,6 +209,8 @@ const handleLogin = (
         return 'Audit Logs';
       case 'faculty-courses':
         return 'My Courses';
+      case 'assignment-history':
+        return 'Assignment History';
       default:
         return 'Dashboard';
     }
