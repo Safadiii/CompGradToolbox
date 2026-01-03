@@ -16,6 +16,7 @@ from app.routes import onboarding
 from app.routes import skills
 from app.routes import ta_assignments
 from app.routes import export_assignment_xlsx
+from app.routes import checkers
 from app.routes.assignment_history import router as assignment_history_router
 
 
@@ -52,6 +53,7 @@ app.include_router(skills.router, prefix="/api", tags=["Skills"])
 app.include_router(ta_assignments.router, prefix="/api", tags=["Assignment"])
 app.include_router(export_assignment_xlsx.router, prefix="/api")
 app.include_router(assignment_history_router, prefix="/api")
+app.include_router(checkers.router, prefix="/api/checkers", tags=["checkers"])
 
 
 

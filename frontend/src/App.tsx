@@ -158,9 +158,9 @@ const handleLogin = (
         }
         return <TAAssignmentFaculty Name={name} userName = {username} />;
       case 'comp590':
-        return <ReportChecker type="comp590" />;
+        return <ReportChecker key="comp590" type="comp590" />;
       case 'comp291-391':
-        return <ReportChecker type="comp291-391" />;
+        return <ReportChecker key="comp291-391" type="comp291-391" />;
       case 'rules-weights':
         return <RulesAndWeights />;
       case 'audit-logs':
