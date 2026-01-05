@@ -1,34 +1,39 @@
 from app.core.database import get_db_connection
-
 from app.models import FacultyOnboardingRequest
-from app.core.database import get_db_connection
 
 def onboard_faculty(data: FacultyOnboardingRequest):
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
-        # 1️⃣ Validate user
+        # 1) Validate user and fetch existing stub professor_id
         cursor.execute(
             """
-            SELECT user_id FROM `user`
+            SELECT professor_id FROM `user`
             WHERE user_id=%s
               AND user_type='faculty'
-              AND professor_id IS NULL
+              AND professor_id IS NOT NULL
             """,
             (data.user_id,)
         )
-        if not cursor.fetchone():
-            raise ValueError("Invalid or already-onboarded faculty user")
+        row = cursor.fetchone()
+        if not row:
+            raise ValueError("Invalid user or missing Professor stub (finish registration first)")
 
-        # 2️⃣ Create professor
+        professor_id = row[0]
+
+        # 2) Update professor name (in case onboarding form includes it)
         cursor.execute(
-            "INSERT INTO professor (name) VALUES (%s)",
-            (data.name,)
+            "UPDATE professor SET name=%s WHERE professor_id=%s",
+            (data.name, professor_id)
         )
-        professor_id = cursor.lastrowid
 
-        # 3️⃣ Preferred TAs
+        # 3) Idempotent preferred TAs
+        cursor.execute(
+            "DELETE FROM professor_preferred_ta WHERE professor_id=%s",
+            (professor_id,)
+        )
+
         for ta_id in data.preferred_tas:
             cursor.execute(
                 """
@@ -37,12 +42,6 @@ def onboard_faculty(data: FacultyOnboardingRequest):
                 """,
                 (professor_id, ta_id)
             )
-
-        # 4️⃣ Link professor to user
-        cursor.execute(
-            "UPDATE `user` SET professor_id=%s WHERE user_id=%s",
-            (professor_id, data.user_id)
-        )
 
         conn.commit()
         return professor_id

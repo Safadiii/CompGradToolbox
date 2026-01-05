@@ -4,7 +4,7 @@ import secrets
 from app.core.database import get_db_connection
 from app.core.security import hash_password
 
-PENDING_TTL_MINUTES = 30
+PENDING_TTL_MINUTES = 3
 
 def start_registration(name: str, username: str, password: str, role: str):
     """
@@ -15,6 +15,7 @@ def start_registration(name: str, username: str, password: str, role: str):
     cursor = conn.cursor()
 
     try:
+        cursor.execute("DELETE FROM pending_registration WHERE expires_at < UTC_TIMESTAMP()")
         # 1) username must not exist in real users
         cursor.execute("SELECT user_id FROM `user` WHERE username=%s", (username,))
         if cursor.fetchone():

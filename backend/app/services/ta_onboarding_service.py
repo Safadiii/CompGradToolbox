@@ -2,31 +2,43 @@ from app.core.database import get_db_connection
 
 def onboard_ta(data):
     """
-    Creates a fully-valid TA and links it to the user.
-    No partial TA rows are ever created.
+    Updates the TA stub created during finish_registration and completes onboarding.
+    (No new TA row is inserted here.)
     """
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
+        # 1) Validate user and fetch the existing stub ta_id
         cursor.execute(
             """
-            SELECT user_id FROM `user`
+            SELECT ta_id FROM `user`
             WHERE user_id=%s
               AND user_type='student'
-              AND ta_id IS NULL
+              AND ta_id IS NOT NULL
             """,
             (data.user_id,)
         )
-        if not cursor.fetchone():
-            raise ValueError("Invalid user or TA already onboarded")
+        row = cursor.fetchone()
+        if not row:
+            raise ValueError("Invalid user or missing TA stub (finish registration first)")
 
+        # cursor is not dictionary=True, so row is a tuple
+        ta_id = row[0]
+
+        # 2) Update the existing TA record (persist name + onboarding fields)
         cursor.execute(
             """
-            INSERT INTO ta
-            (name, program, level, background, admit_term, standing, max_hours)
-            VALUES (%s,%s,%s,%s,%s,%s,%s)
+            UPDATE ta
+            SET name=%s,
+                program=%s,
+                level=%s,
+                background=%s,
+                admit_term=%s,
+                standing=%s,
+                max_hours=%s
+            WHERE ta_id=%s
             """,
             (
                 data.name,
@@ -35,10 +47,14 @@ def onboard_ta(data):
                 data.background,
                 data.admit_term,
                 data.standing,
-                data.max_hours
+                data.max_hours,
+                ta_id
             )
         )
-        ta_id = cursor.lastrowid
+
+        # 3) Make onboarding idempotent: clear & re-insert skills/preferences
+        cursor.execute("DELETE FROM ta_skill WHERE ta_id=%s", (ta_id,))
+        cursor.execute("DELETE FROM ta_preferred_professor WHERE ta_id=%s", (ta_id,))
 
         for skill in data.skills:
             cursor.execute(
@@ -54,11 +70,6 @@ def onboard_ta(data):
                 """,
                 (ta_id, professor_id)
             )
-
-        cursor.execute(
-            "UPDATE `user` SET ta_id=%s WHERE user_id=%s",
-            (ta_id, data.user_id)
-        )
 
         conn.commit()
         return ta_id

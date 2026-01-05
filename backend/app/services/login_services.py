@@ -3,12 +3,7 @@ from app.core.security import verify_password, hash_password
 from typing import Optional, Dict
 
 def authenticate_user(username: str, password: str) -> Optional[Dict]:
-    """
-    Authenticate user with support for:
-    - legacy plaintext passwords
-    - bcrypt-hashed passwords
-    Automatically upgrades plaintext passwords to hashed.
-    """
+
     with get_db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
 
@@ -29,12 +24,10 @@ def authenticate_user(username: str, password: str) -> Optional[Dict]:
         stored_password = user["password"]
         password_ok = False
 
-        # 2️⃣ Check hashed vs plaintext
-        if stored_password.startswith("$2"):
+        if stored_password and stored_password.startswith("$2"):
             password_ok = verify_password(password, stored_password)
         else:
             password_ok = password == stored_password
-
             if password_ok:
                 new_hash = hash_password(password)
                 cursor.execute(
@@ -47,37 +40,59 @@ def authenticate_user(username: str, password: str) -> Optional[Dict]:
             cursor.close()
             return None
 
-        # 3️⃣ Resolve display name
         name = None
-        if user["user_type"] == "student" and user.get("ta_id"):
-            cursor.execute(
-                "SELECT name FROM ta WHERE ta_id=%s",
-                (user["ta_id"],)
-            )
-            result = cursor.fetchone()
-            if result:
-                name = result["name"]
+        onboarding_required = False
 
-        elif user["user_type"] == "faculty" and user.get("professor_id"):
-            cursor.execute(
-                "SELECT name FROM professor WHERE professor_id=%s",
-                (user["professor_id"],)
-            )
-            result = cursor.fetchone()
-            if result:
-                name = result["name"]
+        if user["user_type"] == "student":
+            ta_id = user.get("ta_id")
+
+            if not ta_id:
+                onboarding_required = True
+            else:
+                cursor.execute(
+                    """
+                    SELECT name, program, admit_term, level
+                    FROM ta
+                    WHERE ta_id=%s
+                    """,
+                    (ta_id,)
+                )
+                ta_row = cursor.fetchone()
+
+                if ta_row:
+                    name = ta_row.get("name")
+                    if ta_row.get("program") is None or ta_row.get("admit_term") is None:
+                        onboarding_required = True
+                else:
+                    onboarding_required = True
+
+        elif user["user_type"] == "faculty":
+            professor_id = user.get("professor_id")
+
+            if not professor_id:
+                onboarding_required = True
+            else:
+                cursor.execute(
+                    "SELECT name FROM professor WHERE professor_id=%s",
+                    (professor_id,)
+                )
+                prof_row = cursor.fetchone()
+                if prof_row:
+                    name = prof_row.get("name")
+
+                cursor.execute(
+                    "SELECT COUNT(*) AS cnt FROM professor_preferred_ta WHERE professor_id=%s",
+                    (professor_id,)
+                )
+                cnt_row = cursor.fetchone()
+                if not cnt_row or cnt_row["cnt"] == 0:
+                    onboarding_required = True
 
         elif user["user_type"] == "admin":
             name = "Admin User"
+            onboarding_required = False
 
         cursor.close()
-        onboarding_required = False
-
-        if user["user_type"] == "student" and user.get("ta_id") is None:
-            onboarding_required = True
-
-        if user["user_type"] == "faculty" and user.get("professor_id") is None:
-            onboarding_required = True
 
         return {
             "user_id": user["user_id"],
@@ -88,4 +103,3 @@ def authenticate_user(username: str, password: str) -> Optional[Dict]:
             "professor_id": user.get("professor_id"),
             "onboarding_required": onboarding_required
         }
-

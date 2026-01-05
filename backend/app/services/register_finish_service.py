@@ -1,123 +1,84 @@
-from datetime import datetime
 from app.core.database import get_db_connection
 
-def finish_registration(registration_token: str, data: dict):
+
+def finish_registration(token: str) -> int:
     """
-    Atomically:
-    - validates pending token (not expired)
-    - creates user
-    - creates TA or professor and links to user
-    - deletes pending record
+    Finalizes a pending registration by token:
+    - Validates token exists and has not expired
+    - Creates a real user row
+    - Immediately creates minimal TA/Professor row to persist name (no user.name needed)
+    - Links the TA/Professor row to the user
+    - Deletes the pending row
+    Returns the new user_id (int)
     """
+
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
 
     try:
-        # lock pending row
+        # Lock the pending row so token can't be used twice concurrently
         cursor.execute(
             """
-            SELECT pending_id, name, username, password_hash, role, expires_at
+            SELECT pending_id, name, username, password_hash, role
             FROM pending_registration
-            WHERE token=%s
+            WHERE token = %s
+              AND expires_at > UTC_TIMESTAMP()
             FOR UPDATE
             """,
-            (registration_token,)
+            (token,)
         )
-        row = cursor.fetchone()
-        if not row:
-            raise ValueError("Invalid registration token")
+        pending = cursor.fetchone()
 
-        pending_id, name, username, pw_hash, role, expires_at = row
+        if not pending:
+            raise ValueError("Invalid, expired, or already-used registration token")
 
-        # expire check
-        if isinstance(expires_at, str):
-            # sometimes connector returns str; safe fallback
-            raise ValueError("Token expired")
+        name = pending["name"]
+        username = pending["username"]
+        password_hash = pending["password_hash"]
+        role = pending["role"]  # 'student' | 'faculty' | 'admin'
 
-        if expires_at < datetime.utcnow():
-            # remove expired token
-            cursor.execute("DELETE FROM pending_registration WHERE pending_id=%s", (pending_id,))
-            conn.commit()
-            raise ValueError("Registration token expired")
-
-        # create user
+        # Create the real user (note: user table has no name field)
         cursor.execute(
             """
             INSERT INTO `user` (username, password, user_type)
-            VALUES (%s,%s,%s)
+            VALUES (%s, %s, %s)
             """,
-            (username, pw_hash, role)
+            (username, password_hash, role)
         )
         user_id = cursor.lastrowid
 
-        # role-specific onboarding in SAME transaction
+        # Persist the name by creating the role record immediately
         if role == "student":
-            # required fields used by your TA onboarding
-            cursor.execute(
-                """
-                INSERT INTO ta (name, program, level, background, admit_term, standing, max_hours)
-                VALUES (%s,%s,%s,%s,%s,%s,%s)
-                """,
-                (
-                    data["name"],
-                    data["program"],
-                    data["level"],
-                    data["background"],
-                    data["admit_term"],
-                    data["standing"],
-                    data["max_hours"],
-                )
-            )
+            cursor.execute("INSERT INTO ta (name) VALUES (%s)", (name,))
             ta_id = cursor.lastrowid
-
-            for skill in data.get("skills", []):
-                cursor.execute(
-                    "INSERT INTO ta_skill (ta_id, skill) VALUES (%s,%s)",
-                    (ta_id, skill)
-                )
-
-            for professor_id in data.get("preferred_professors", []):
-                cursor.execute(
-                    """
-                    INSERT INTO ta_preferred_professor (ta_id, professor_id)
-                    VALUES (%s,%s)
-                    """,
-                    (ta_id, professor_id)
-                )
-
-            cursor.execute("UPDATE `user` SET ta_id=%s WHERE user_id=%s", (ta_id, user_id))
-            created_role_id = ta_id
+            cursor.execute(
+                "UPDATE `user` SET ta_id=%s WHERE user_id=%s",
+                (ta_id, user_id)
+            )
 
         elif role == "faculty":
-            cursor.execute("INSERT INTO professor (name) VALUES (%s)", (data["name"],))
+            cursor.execute("INSERT INTO professor (name) VALUES (%s)", (name,))
             professor_id = cursor.lastrowid
+            cursor.execute(
+                "UPDATE `user` SET professor_id=%s WHERE user_id=%s",
+                (professor_id, user_id)
+            )
 
-            for ta_id in data.get("preferred_tas", []):
-                cursor.execute(
-                    """
-                    INSERT INTO professor_preferred_ta (professor_id, ta_id)
-                    VALUES (%s,%s)
-                    """,
-                    (professor_id, ta_id)
-                )
-
-            cursor.execute("UPDATE `user` SET professor_id=%s WHERE user_id=%s", (professor_id, user_id))
-            created_role_id = professor_id
+        elif role == "admin":
+            # No linked record needed; login can show "Admin User"
+            pass
 
         else:
-            created_role_id = None
+            raise ValueError("Unsupported role")
 
-        # delete pending registration (so abandoned ones never become users)
-        cursor.execute("DELETE FROM pending_registration WHERE pending_id=%s", (pending_id,))
+        # Delete pending row now that user is created
+        cursor.execute(
+            "DELETE FROM pending_registration WHERE pending_id=%s",
+            (pending["pending_id"],)
+        )
 
         conn.commit()
-
-        return {
-            "message": "Registration completed",
-            "user_id": user_id,
-            "role": role,
-            "role_id": created_role_id
-        }
+        return user_id
 
     except Exception:
         conn.rollback()
